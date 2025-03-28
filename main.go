@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 // Database connection
@@ -20,8 +21,17 @@ var DB *gorm.DB
 
 func initDatabase() {
 	godotenv.Load()
-	var err error
-	DB, err = gorm.Open(sqlite.Open("sitemap_builder.db"), &gorm.Config{})
+
+	dbPath := "data/sitemap_builder.db"
+	dir := filepath.Dir(dbPath)
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		log.Printf("Error creating directory:", err)
+		return
+	}
+
+	DB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}

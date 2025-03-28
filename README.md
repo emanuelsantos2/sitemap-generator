@@ -25,7 +25,7 @@ A powerful Go application for generating XML sitemaps, including support for new
 Clone the repository:
 
 ```sh
-git clone https://github.com/yourusername/sitemap-builder.git
+git clone https://github.com/emanuelsantos2/sitemap-builder.git
 cd sitemap-builder
 ```
 
@@ -137,7 +137,7 @@ The application uses an `init.json` file for initial configuration. Example stru
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/sitemap-builder/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/emanuelsantos2/sitemap-builder/issues).
 
 ## 📄 License
 
