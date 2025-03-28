@@ -105,6 +105,12 @@ func setupRoutes(app *fiber.App) {
 	datasource.Put("/:id", handlers.UpdateDatasource)
 	datasource.Delete("/:id", handlers.DeleteDatasource)
 
+	validation := api.Group("/validation")
+	validation.Use(middleware.AdminOnly)
+	validation.Post("/start", handlers.StartValidation)
+	validation.Get("/results/:id", handlers.GetValidationResults)
+
+
 	// Protected route to trigger sitemap regeneration
 	api.Post("/generate", middleware.AdminOnly, handlers.GenerateSitemaps)
 }
