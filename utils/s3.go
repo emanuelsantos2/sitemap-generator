@@ -12,7 +12,7 @@ import (
     "github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func UploadToS3(fileData []byte, bucket, key, region, endpoint string) error {
+func UploadToS3(fileData []byte, bucket, key, region, endpoint, contentType string) error {
     ctx := context.Background()
     
     cfg, err := config.LoadDefaultConfig(ctx,
@@ -38,6 +38,7 @@ func UploadToS3(fileData []byte, bucket, key, region, endpoint string) error {
         Key:    aws.String(key),
         Body:   bytes.NewReader(fileData),
         ACL:    "public-read",
+        ContentType: aws.String(contentType),
     })
     
     return err

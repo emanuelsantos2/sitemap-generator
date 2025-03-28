@@ -204,7 +204,7 @@ func writeXMLFile(data interface{}, filename string, storage models.StorageConfi
     if storage.Mode == "s3" {
 		log.Printf("Uploading to S3: %s", filename)
         key := storage.Path + filename
-        return utils.UploadToS3(xmlData, storage.Bucket, key, storage.Region, storage.Endpoint)
+        return utils.UploadToS3(xmlData, storage.Bucket, key, storage.Region, storage.Endpoint, "application/xml")
     }
 	log.Printf("Writing to local file: %s", filename)
 

@@ -6,6 +6,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"sitemap-builder/models"
 	"time"
+	"os"
 )
 
 func Login(c *fiber.Ctx) error {
@@ -40,8 +41,13 @@ func Login(c *fiber.Ctx) error {
 		"exp":  time.Now().Add(time.Hour * 24).Unix(),
 	}
 
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "default_secret_key" // Fallback default key
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	t, err := token.SignedString([]byte("your_secret_key"))
+	t, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
