@@ -69,63 +69,102 @@ func GetValidationResults(c *fiber.Ctx) error {
 }
 
 // Background validation process
-func validateSitemapIndexAsync(indexURL, resultsFile string) {
+func validateSitemapIndexAsync(sitemapURL, resultsFile string) {
 	// Open CSV file for appending
 	file, err := os.OpenFile(resultsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return
 	}
 	defer file.Close()
-	
+
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
-	
+
 	// Create mutex for safe writing to CSV
 	var mutex sync.Mutex
-	
-	// Fetch sitemap index
-	indexContent, err := fetchURL(indexURL)
+
+	// Fetch sitemap content
+	content, err := fetchURL(sitemapURL)
 	if err != nil {
 		mutex.Lock()
-		writer.Write([]string{indexURL, "ERROR", "0", err.Error()})
+		writer.Write([]string{sitemapURL, "ERROR", "0", err.Error()})
 		writer.Flush()
 		mutex.Unlock()
 		return
 	}
-	
-	// Parse sitemap index
+
+	// First, try to parse as sitemap index
 	var index models.XMLSitemapIndex
-	if err := xml.Unmarshal(indexContent, &index); err != nil {
+	if err := xml.Unmarshal(content, &index); err == nil && len(index.Sitemaps) > 0 {
+		// Record success for the index
 		mutex.Lock()
-		writer.Write([]string{indexURL, "ERROR", "0", "Invalid XML: " + err.Error()})
+		writer.Write([]string{sitemapURL, "OK", "200", ""})
 		writer.Flush()
 		mutex.Unlock()
+
+		// Process each sitemap within the index with limited concurrency
+		var wg sync.WaitGroup
+		semaphore := make(chan struct{}, 5) // Limit to 5 concurrent requests
+
+		for _, sitemap := range index.Sitemaps {
+			wg.Add(1)
+			semaphore <- struct{}{} // Acquire semaphore
+
+			go func(sitemapURL string) {
+				defer wg.Done()
+				defer func() { <-semaphore }() // Release semaphore
+
+				validateSitemap(sitemapURL, writer, &mutex)
+			}(sitemap.Loc)
+		}
+
+		wg.Wait()
 		return
 	}
-	
-	// Record success for index
+
+	// If not an index, try to parse as a single sitemap (URL set)
+	var urlset models.XMLURLSet
+	if err := xml.Unmarshal(content, &urlset); err == nil && len(urlset.URLs) > 0 {
+		// Record success for the single sitemap
+		mutex.Lock()
+		writer.Write([]string{sitemapURL, "OK", "200", ""})
+		writer.Flush()
+		mutex.Unlock()
+
+		// Validate each URL in the sitemap with limited concurrency
+		var wg sync.WaitGroup
+		urlSemaphore := make(chan struct{}, 10) // Limit to 10 concurrent URL checks
+
+		for _, url := range urlset.URLs {
+			wg.Add(1)
+			urlSemaphore <- struct{}{} // Acquire semaphore
+
+			go func(loc string) {
+				defer wg.Done()
+				defer func() { <-urlSemaphore }() // Release semaphore
+
+				status, statusCode, err := checkURL(loc)
+
+				mutex.Lock()
+				if err != nil {
+					writer.Write([]string{loc, status, fmt.Sprintf("%d", statusCode), err.Error()})
+				} else {
+					writer.Write([]string{loc, status, fmt.Sprintf("%d", statusCode), ""})
+				}
+				writer.Flush()
+				mutex.Unlock()
+			}(url.Loc)
+		}
+
+		wg.Wait()
+		return
+	}
+
+	// If neither sitemap index nor single sitemap, record an error
 	mutex.Lock()
-	writer.Write([]string{indexURL, "OK", "200", ""})
+	writer.Write([]string{sitemapURL, "ERROR", "0", "Invalid XML format: not a valid sitemap index or URL set"})
 	writer.Flush()
 	mutex.Unlock()
-	
-	// Process each sitemap with limited concurrency
-	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, 5) // Limit to 5 concurrent requests
-	
-	for _, sitemap := range index.Sitemaps {
-		wg.Add(1)
-		semaphore <- struct{}{} // Acquire semaphore
-		
-		go func(sitemapURL string) {
-			defer wg.Done()
-			defer func() { <-semaphore }() // Release semaphore
-			
-			validateSitemap(sitemapURL, writer, &mutex)
-		}(sitemap.Loc)
-	}
-	
-	wg.Wait()
 }
 
 func validateSitemap(sitemapURL string, writer *csv.Writer, mutex *sync.Mutex) {
@@ -194,7 +233,7 @@ func checkURL(url string) (string, int, error) {
 		},
 	}
 	
-	resp, err := client.Get(url)
+	resp, err := client.Head(url)
 	if err != nil {
 		return "ERROR", 0, err
 	}
