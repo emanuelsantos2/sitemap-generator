@@ -18,6 +18,7 @@
 # vendor/
 
 sitemaps/*
+data/*
 
 *.db
 # Go workspace file
