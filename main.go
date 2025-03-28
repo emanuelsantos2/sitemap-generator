@@ -55,8 +55,14 @@ func initDatabase() {
 }
 
 func setupRoutes(app *fiber.App) {
+	godotenv.Load()
+
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "default_secret_key" // Fallback default key
+	}
 	// Middleware for protected routes
-	app.Use(middleware.NewAuthMiddleware("your_secret_key"))
+	app.Use(middleware.NewAuthMiddleware(secretKey))
 
 	// API group
 	api := app.Group("/api")
