@@ -83,6 +83,12 @@ func GenerateSitemap(db *gorm.DB, sitemap *models.Sitemap, baseFilename string, 
 		return nil, err
 	}
 
+	sqlDB, err := externalDB.DB()
+    if err != nil {
+        return nil, err
+    }
+    defer sqlDB.Close()
+
 	switch sitemap.Type {
 	case "news":
 		if strings.ToLower(sitemap.Type) == "news" {
